@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dandelifeon — Botania ライフゲームシミュレーター</title>
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0d0f0b;
+  --bg2: #141a10;
+  --bg3: #1c2418;
+  --panel: #1a2016;
+  --border: #2e3d28;
+  --border2: #3d5234;
+  --accent: #5daa3c;
+  --accent2: #7ccf50;
+  --mana: #3db88a;
+  --mana2: #5fe3b0;
+  --amber: #d4891a;
+  --amber2: #f0a830;
+  --red: #c04040;
+  --text: #c8d8c0;
+  --text2: #8aaa80;
+  --text3: #587050;
+  --center-color: rgba(240,168,48,0.18);
+  --center-stroke: rgba(240,168,48,0.7);
+  --font-pixel: 'VT323', monospace;
+  --font-body: 'Noto Sans JP', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 14px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 0 40px;
+}
+
+/* ── Header ── */
+header {
+  width: 100%;
+  padding: 18px 32px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  background: var(--bg2);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+header h1 {
+  font-family: var(--font-pixel);
+  font-size: 32px;
+  color: var(--accent2);
+  letter-spacing: 2px;
+  line-height: 1;
+}
+header p {
+  font-size: 12px;
+  color: var(--text3);
+  letter-spacing: 0.5px;
+}
+.header-mana {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-pixel);
+  font-size: 22px;
+  color: var(--mana2);
+}
+.header-mana-label { font-size: 12px; font-family: var(--font-body); color: var(--text3); }
+
+/* ── Layout ── */
+.main-grid {
+  width: 100%;
+  max-width: 1100px;
+  padding: 24px 20px;
+  display: grid;
+  grid-template-columns: auto 300px;
+  gap: 20px;
+  align-items: start;
+}
+
+/* ── Canvas area ── */
+.canvas-section { display: flex; flex-direction: column; gap: 14px; }
+
+.toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.btn {
+  font-family: var(--font-pixel);
+  font-size: 18px;
+  letter-spacing: 1px;
+  padding: 6px 18px;
+  background: transparent;
+  border: 1px solid var(--border2);
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  border-radius: 3px;
+}
+.btn:hover { background: var(--bg3); border-color: var(--accent); color: var(--accent2); }
+.btn.active { background: var(--accent); border-color: var(--accent2); color: #0d0f0b; }
+.btn.danger { border-color: var(--red); }
+.btn.danger:hover { background: rgba(192,64,64,0.15); color: #f07070; border-color: #f07070; }
+.btn.mana-btn { border-color: var(--mana); color: var(--mana2); }
+.btn.mana-btn:hover { background: rgba(61,184,138,0.15); }
+
+.speed-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  color: var(--text2);
+  font-size: 13px;
+}
+input[type=range] {
+  -webkit-appearance: none;
+  height: 3px;
+  background: var(--border2);
+  border-radius: 2px;
+  width: 90px;
+  cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  background: var(--accent);
+  border-radius: 2px;
+  cursor: pointer;
+}
+.speed-num {
+  font-family: var(--font-pixel);
+  font-size: 20px;
+  color: var(--accent2);
+  min-width: 24px;
+}
+
+/* ── Canvas ── */
+#canvas-wrap {
+  position: relative;
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px var(--border), inset 0 0 60px rgba(0,0,0,0.4);
+}
+canvas {
+  display: block;
+  cursor: crosshair;
+}
+
+/* ── Stats bar ── */
+.stats-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.stat-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 10px 14px;
+}
+.stat-card .label {
+  font-size: 11px;
+  color: var(--text3);
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+.stat-card .value {
+  font-family: var(--font-pixel);
+  font-size: 26px;
+  color: var(--accent2);
+  line-height: 1;
+}
+.stat-card.mana .value { color: var(--mana2); }
+
+/* Mana progress */
+.mana-progress {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 10px 14px;
+}
+.mana-progress .label { font-size: 11px; color: var(--text3); margin-bottom: 6px; }
+.bar-track {
+  height: 10px;
+  background: var(--bg3);
+  border-radius: 2px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--mana) 0%, var(--mana2) 100%);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+  width: 0%;
+}
+.bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text3);
+  margin-top: 4px;
+}
+
+/* ── Side panel ── */
+.side-panel { display: flex; flex-direction: column; gap: 14px; }
+
+.panel-block {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.panel-block h3 {
+  font-family: var(--font-pixel);
+  font-size: 18px;
+  color: var(--accent);
+  letter-spacing: 1px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg3);
+}
+
+/* Presets */
+.presets-list { padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+.preset-btn {
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text);
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 13px;
+  transition: border-color 0.1s, background 0.1s;
+}
+.preset-btn:hover { border-color: var(--accent); background: var(--bg2); color: var(--accent2); }
+.preset-btn .pname { font-weight: 500; display: block; margin-bottom: 2px; }
+.preset-btn .pdesc { font-size: 11px; color: var(--text3); }
+
+/* Rules */
+.rules-list { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+.rule-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text2);
+  padding: 6px 8px;
+  background: var(--bg3);
+  border-radius: 3px;
+  border-left: 3px solid var(--border2);
+}
+.rule-item.special { border-left-color: var(--amber); }
+.rule-item.mana-rule { border-left-color: var(--mana); }
+.rule-num {
+  font-family: var(--font-pixel);
+  font-size: 18px;
+  color: var(--accent);
+  min-width: 18px;
+  line-height: 1.2;
+}
+.rule-item.special .rule-num { color: var(--amber2); }
+.rule-item.mana-rule .rule-num { color: var(--mana2); }
+
+/* Legend */
+.legend { padding: 10px 14px; display: flex; flex-direction: column; gap: 6px; }
+.leg { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text2); }
+.leg-swatch { width: 16px; height: 16px; border-radius: 2px; flex-shrink: 0; }
+
+/* Log */
+.event-log { padding: 10px; max-height: 130px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.log-entry {
+  font-size: 11px;
+  color: var(--text3);
+  padding: 4px 8px;
+  background: var(--bg3);
+  border-radius: 2px;
+  display: flex;
+  gap: 8px;
+}
+.log-gen { font-family: var(--font-pixel); font-size: 14px; color: var(--accent); min-width: 40px; }
+.log-mana { color: var(--mana2); }
+
+/* Absorbed flash */
+@keyframes flashAbsorb {
+  0% { opacity: 1; }
+  50% { opacity: 0.3; }
+  100% { opacity: 1; }
+}
+.flash { animation: flashAbsorb 0.4s ease; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚘ DANDELIFEON</h1>
+  <p>Botania — 修正ライフゲーム マナ生成シミュレーター</p>
+  <div class="header-mana">
+    <span class="header-mana-label">MANA</span>
+    <span id="hdr-mana">0</span>
+    <span style="font-size:14px;color:var(--text3)">/50000</span>
+  </div>
+</header>
+
+<div class="main-grid">
+  <!-- Left: canvas -->
+  <div class="canvas-section">
+    <div class="toolbar">
+      <button class="btn active" id="btn-run" onclick="toggleRun()">▶ 開始</button>
+      <button class="btn" onclick="step()">STEP</button>
+      <button class="btn danger" onclick="resetBoard()">RESET</button>
+      <button class="btn danger" onclick="clearBoard()">CLEAR</button>
+      <div class="speed-wrap">
+        速度 <input type="range" min="1" max="20" value="4" id="speed-sl" oninput="updateSpeed(this.value)">
+        <span class="speed-num" id="speed-v">4</span>x
+      </div>
+    </div>
+
+    <div id="canvas-wrap">
+      <canvas id="cv"></canvas>
+    </div>
+
+    <div class="stats-bar">
+      <div class="stat-card">
+        <div class="label">世代</div>
+        <div class="value" id="s-gen">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">生存セル数</div>
+        <div class="value" id="s-cells">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">最大年齢</div>
+        <div class="value" id="s-age">0</div>
+      </div>
+      <div class="stat-card mana">
+        <div class="label">今回の取得マナ</div>
+        <div class="value" id="s-last">—</div>
+      </div>
+    </div>
+
+    <div class="mana-progress">
+      <div class="label">マナ蓄積量</div>
+      <div class="bar-track"><div class="bar-fill" id="mana-fill"></div></div>
+      <div class="bar-label">
+        <span id="mana-num">0</span>
+        <span>上限 50,000</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: panel -->
+  <div class="side-panel">
+
+    <div class="panel-block">
+      <h3>プリセット配置</h3>
+      <div class="presets-list">
+        <button class="preset-btn" onclick="loadPreset('oscillator')">
+          <span class="pname">高効率オシレーター</span>
+          <span class="pdesc">対称振動で安定したマナ供給</span>
+        </button>
+        <button class="preset-btn" onclick="loadPreset('glider')">
+          <span class="pname">グライダー型</span>
+          <span class="pdesc">四隅から中心へ移動するセル群</span>
+        </button>
+        <button class="preset-btn" onclick="loadPreset('symmetric')">
+          <span class="pname">放射対称</span>
+          <span class="pdesc">8方向対称の美しい配置</span>
+        </button>
+        <button class="preset-btn" onclick="loadPreset('spiral')">
+          <span class="pname">スパイラル収束</span>
+          <span class="pdesc">螺旋状に中心へ向かう高年齢セル</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="panel-block">
+      <h3>ルール</h3>
+      <div class="rules-list">
+        <div class="rule-item">
+          <span class="rule-num">1</span>
+          <span>隣接生存セルが2か3なら生存 → 年齢+1</span>
+        </div>
+        <div class="rule-item">
+          <span class="rule-num">2</span>
+          <span>隣接が2未満または4以上なら死亡</span>
+        </div>
+        <div class="rule-item">
+          <span class="rule-num">3</span>
+          <span>死亡セルに隣接生存セルがちょうど3なら誕生、年齢 = 最老隣接+1</span>
+        </div>
+        <div class="rule-item special">
+          <span class="rule-num">4</span>
+          <span>年齢60超のセルは強制死亡</span>
+        </div>
+        <div class="rule-item mana-rule">
+          <span class="rule-num">5</span>
+          <span>中心3×3に入ったセルを吸収 → <strong style="color:var(--mana2)">マナ = 年齢×60</strong></span>
+        </div>
+        <div class="rule-item mana-rule">
+          <span class="rule-num">6</span>
+          <span>吸収発生時、残り全セルが死亡</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-block">
+      <h3>凡例</h3>
+      <div class="legend">
+        <div class="leg"><div class="leg-swatch" style="background:#c8e6c0;border:1px solid #81c784;"></div>年齢 1〜20（若齢）</div>
+        <div class="leg"><div class="leg-swatch" style="background:#4caf50;"></div>年齢 21〜40（成熟）</div>
+        <div class="leg"><div class="leg-swatch" style="background:#1b5e20;"></div>年齢 41〜60（高齢）</div>
+        <div class="leg"><div class="leg-swatch" style="background:rgba(240,168,48,0.3);border:2px solid rgba(240,168,48,0.7);"></div>中心3×3（マナ吸収域）</div>
+      </div>
+    </div>
+
+    <div class="panel-block">
+      <h3>吸収ログ</h3>
+      <div class="event-log" id="log"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const BOARD = 25;
+const CX = 12; // center index
+const CELL = 22;
+
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+cv.width = BOARD * CELL;
+cv.height = BOARD * CELL;
+
+let grid = makeEmpty();
+let initGrid = makeEmpty();
+let gen = 0, mana = 0, running = false;
+let intervalId = null, speed = 4;
+let drawing = false, drawVal = null;
+
+function makeEmpty() {
+  return Array.from({length: BOARD}, () => new Int16Array(BOARD));
+}
+
+function isCenter(r, c) {
+  return r >= CX-1 && r <= CX+1 && c >= CX-1 && c <= CX+1;
+}
+
+function neighbors(g, r, c) {
+  let n = 0, maxAge = 0;
+  for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+    if (!dr && !dc) continue;
+    const nr = r+dr, nc = c+dc;
+    if (nr >= 0 && nr < BOARD && nc >= 0 && nc < BOARD && g[nr][nc] > 0) {
+      n++;
+      if (g[nr][nc] > maxAge) maxAge = g[nr][nc];
+    }
+  }
+  return {n, maxAge};
+}
+
+function step() {
+  const next = makeEmpty();
+  for (let r = 0; r < BOARD; r++) for (let c = 0; c < BOARD; c++) {
+    if (isCenter(r, c)) continue;
+    const age = grid[r][c];
+    const {n, maxAge} = neighbors(grid, r, c);
+    if (age > 0) {
+      if (age < 60 && (n === 2 || n === 3)) next[r][c] = age + 1;
+    } else {
+      if (n === 3) next[r][c] = maxAge + 1;
+    }
+  }
+
+  // absorption
+  let gained = 0, absorbed = 0;
+  for (let r = CX-1; r <= CX+1; r++) for (let c = CX-1; c <= CX+1; c++) {
+    if (next[r][c] > 0) { gained += next[r][c] * 60; absorbed++; next[r][c] = 0; }
+  }
+
+  if (absorbed > 0) {
+    for (let r = 0; r < BOARD; r++) for (let c = 0; c < BOARD; c++) next[r][c] = 0;
+    mana = Math.min(50000, mana + gained);
+    addLog(gen+1, absorbed, gained);
+    document.getElementById('s-last').textContent = gained.toLocaleString();
+    document.getElementById('canvas-wrap').classList.add('flash');
+    setTimeout(() => document.getElementById('canvas-wrap').classList.remove('flash'), 400);
+  }
+
+  grid = next;
+  gen++;
+  updateUI();
+  draw();
+}
+
+function updateUI() {
+  let maxAge = 0, cells = 0;
+  for (let r = 0; r < BOARD; r++) for (let c = 0; c < BOARD; c++) {
+    if (grid[r][c] > 0) { cells++; if (grid[r][c] > maxAge) maxAge = grid[r][c]; }
+  }
+  document.getElementById('s-gen').textContent = gen;
+  document.getElementById('s-cells').textContent = cells;
+  document.getElementById('s-age').textContent = maxAge;
+  document.getElementById('hdr-mana').textContent = mana.toLocaleString();
+  document.getElementById('mana-num').textContent = mana.toLocaleString();
+  document.getElementById('mana-fill').style.width = Math.min(100, mana/500) + '%';
+}
+
+function ageColor(age) {
+  if (age <= 20) {
+    const t = age / 20;
+    return `rgb(${Math.round(200-20*t)},${Math.round(230-30*t)},${Math.round(200-80*t)})`;
+  } else if (age <= 40) {
+    const t = (age-20)/20;
+    return `rgb(${Math.round(180-105*t)},${Math.round(200-60*t)},${Math.round(120-80*t)})`;
+  } else {
+    const t = (age-40)/20;
+    return `rgb(${Math.round(75-20*t)},${Math.round(140-50*t)},${Math.round(40+10*t)})`;
+  }
+}
+
+function draw() {
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  // background
+  ctx.fillStyle = '#0d1209';
+  ctx.fillRect(0, 0, cv.width, cv.height);
+
+  // grid lines
+  ctx.strokeStyle = 'rgba(46,61,40,0.5)';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i <= BOARD; i++) {
+    ctx.beginPath(); ctx.moveTo(i*CELL, 0); ctx.lineTo(i*CELL, cv.height); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, i*CELL); ctx.lineTo(cv.width, i*CELL); ctx.stroke();
+  }
+
+  for (let r = 0; r < BOARD; r++) for (let c = 0; c < BOARD; c++) {
+    const x = c * CELL, y = r * CELL;
+
+    if (isCenter(r, c)) {
+      ctx.fillStyle = 'rgba(240,168,48,0.14)';
+      ctx.fillRect(x, y, CELL, CELL);
+      ctx.strokeStyle = 'rgba(240,168,48,0.35)';
+      ctx.lineWidth = 0.5;
+      ctx.strokeRect(x+0.5, y+0.5, CELL-1, CELL-1);
+      if (r === CX && c === CX) {
+        ctx.fillStyle = 'rgba(240,168,48,0.8)';
+        ctx.font = 'bold 13px VT323, monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('D', x + CELL/2, y + CELL/2);
+      }
+      continue;
+    }
+
+    const age = grid[r][c];
+    if (age > 0) {
+      const col = ageColor(age);
+      ctx.fillStyle = col;
+      ctx.fillRect(x+1, y+1, CELL-2, CELL-2);
+      // inner shine
+      ctx.fillStyle = 'rgba(255,255,255,0.08)';
+      ctx.fillRect(x+2, y+2, CELL-4, 3);
+      // age label for old cells
+      if (age >= 45) {
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        ctx.font = '10px VT323, monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(age, x + CELL/2, y + CELL/2);
+      }
+    }
+  }
+}
+
+function addLog(g, count, gained) {
+  const log = document.getElementById('log');
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  entry.innerHTML = `<span class="log-gen">G${g}</span><span>${count}セル吸収</span><span class="log-mana">+${gained.toLocaleString()}</span>`;
+  log.prepend(entry);
+  while (log.children.length > 20) log.removeChild(log.lastChild);
+}
+
+// ── Input ──
+function getCellPos(e) {
+  const rect = cv.getBoundingClientRect();
+  const sx = cv.width / rect.width;
+  const sy = cv.height / rect.height;
+  return [
+    Math.floor((e.clientY - rect.top) * sy / CELL),
+    Math.floor((e.clientX - rect.left) * sx / CELL)
+  ];
+}
+
+cv.addEventListener('mousedown', e => {
+  drawing = true;
+  const [r, c] = getCellPos(e);
+  if (r < 0||r>=BOARD||c<0||c>=BOARD||isCenter(r,c)) return;
+  drawVal = grid[r][c] > 0 ? 0 : 1;
+  grid[r][c] = drawVal;
+  if (!running) initGrid[r][c] = drawVal;
+  draw(); updateUI();
+});
+cv.addEventListener('mousemove', e => {
+  if (!drawing) return;
+  const [r, c] = getCellPos(e);
+  if (r<0||r>=BOARD||c<0||c>=BOARD||isCenter(r,c)) return;
+  grid[r][c] = drawVal;
+  if (!running) initGrid[r][c] = drawVal;
+  draw(); updateUI();
+});
+window.addEventListener('mouseup', () => drawing = false);
+
+// ── Controls ──
+function toggleRun() {
+  running = !running;
+  const btn = document.getElementById('btn-run');
+  btn.textContent = running ? '⏸ 停止' : '▶ 開始';
+  btn.classList.toggle('active', !running);
+  if (running) intervalId = setInterval(step, Math.round(1000/speed));
+  else clearInterval(intervalId);
+}
+
+function updateSpeed(v) {
+  speed = parseInt(v);
+  document.getElementById('speed-v').textContent = v;
+  if (running) { clearInterval(intervalId); intervalId = setInterval(step, Math.round(1000/speed)); }
+}
+
+function resetBoard() {
+  if (running) toggleRun();
+  grid = initGrid.map(r => Int16Array.from(r));
+  gen = 0; mana = 0;
+  document.getElementById('s-last').textContent = '—';
+  document.getElementById('log').innerHTML = '';
+  updateUI(); draw();
+}
+
+function clearBoard() {
+  if (running) toggleRun();
+  grid = makeEmpty(); initGrid = makeEmpty();
+  gen = 0; mana = 0;
+  document.getElementById('s-last').textContent = '—';
+  document.getElementById('log').innerHTML = '';
+  updateUI(); draw();
+}
+
+// ── Presets ──
+function loadPreset(name) {
+  clearBoard();
+  const cx = CX;
+  const defs = {
+    oscillator: [
+      [cx-5,cx-1],[cx-5,cx],[cx-5,cx+1],
+      [cx-4,cx-2],[cx-4,cx+2],
+      [cx-3,cx-3],[cx-3,cx+3],
+      [cx-2,cx-3],[cx-2,cx+3],
+      [cx-1,cx-2],[cx-1,cx+2],
+      [cx,  cx-1],[cx,  cx],[cx,  cx+1],
+      [cx+5,cx-1],[cx+5,cx],[cx+5,cx+1],
+      [cx+4,cx-2],[cx+4,cx+2],
+      [cx+3,cx-3],[cx+3,cx+3],
+      [cx+2,cx-3],[cx+2,cx+3],
+      [cx+1,cx-2],[cx+1,cx+2],
+    ],
+    glider: [
+      [cx-10,cx-2],[cx-10,cx-1],[cx-10,cx],
+      [cx-9, cx+1],
+      [cx-8, cx-1],
+      [cx+10,cx-2],[cx+10,cx-1],[cx+10,cx],
+      [cx+9, cx+1],
+      [cx+8, cx-1],
+      [cx-2, cx-10],[cx-1,cx-10],[cx,cx-10],
+      [cx+1, cx-9],
+      [cx-1, cx-8],
+      [cx-2, cx+10],[cx-1,cx+10],[cx,cx+10],
+      [cx+1, cx+9],
+      [cx-1, cx+8],
+    ],
+    symmetric: [
+      [cx-7,cx-1],[cx-7,cx],[cx-7,cx+1],
+      [cx-5,cx-3],[cx-5,cx+3],
+      [cx-3,cx-5],[cx-3,cx+5],
+      [cx-1,cx-7],[cx,cx-7],[cx+1,cx-7],
+      [cx+7,cx-1],[cx+7,cx],[cx+7,cx+1],
+      [cx+5,cx-3],[cx+5,cx+3],
+      [cx+3,cx-5],[cx+3,cx+5],
+      [cx-1,cx+7],[cx,cx+7],[cx+1,cx+7],
+      [cx-4,cx-4],[cx-4,cx+4],[cx+4,cx-4],[cx+4,cx+4],
+    ],
+    spiral: [
+      [cx-8,cx-4],[cx-8,cx-3],[cx-8,cx-2],
+      [cx-7,cx-5],
+      [cx-6,cx-6],
+      [cx-5,cx-7],
+      [cx-4,cx-8],[cx-3,cx-8],[cx-2,cx-8],
+      [cx+2,cx-8],[cx+3,cx-8],[cx+4,cx-8],
+      [cx+5,cx-7],
+      [cx+6,cx-6],
+      [cx+7,cx-5],
+      [cx+8,cx-4],[cx+8,cx-3],[cx+8,cx-2],
+      [cx+8,cx+2],[cx+8,cx+3],[cx+8,cx+4],
+      [cx+7,cx+5],
+      [cx+6,cx+6],
+      [cx+5,cx+7],
+      [cx+4,cx+8],[cx+3,cx+8],[cx+2,cx+8],
+      [cx-2,cx+8],[cx-3,cx+8],[cx-4,cx+8],
+      [cx-5,cx+7],
+      [cx-6,cx+6],
+      [cx-7,cx+5],
+      [cx-8,cx+4],[cx-8,cx+3],[cx-8,cx+2],
+    ],
+  };
+  for (const [r,c] of (defs[name]||[])) {
+    if (r>=0&&r<BOARD&&c>=0&&c<BOARD&&!isCenter(r,c)) {
+      grid[r][c] = 1; initGrid[r][c] = 1;
+    }
+  }
+  updateUI(); draw();
+}
+
+loadPreset('oscillator');
+</script>
+</body>
+</html>
